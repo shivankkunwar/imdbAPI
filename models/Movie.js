@@ -43,5 +43,5 @@ const MovieSchema = new mongoose.Schema({
 })
 
 MovieSchema.index({name:1,yearOfRelease:1});
-const Movie = mongoose.model('Model', MovieSchema);
+const Movie = mongoose.model('Movie', MovieSchema);
 export default Movie;
