@@ -9,7 +9,8 @@ const popularMovieIds = [
   299534, 301528, 420818, 385128, 619264,
   508947, 337404, 458156, 438631, 566525
 ];
-
+import { createOrFindProducer } from './producerController.js';
+import { createOrFindActor } from './actorController.js';
 
 
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -37,6 +38,7 @@ const fetchTMDBMovie = async (id) => {
     }))
   };
 };
+
 
 const searchTMDBMovies = async (query, page) => {
   const response = await fetch(`${TMDB_BASE_URL}/search/movie?api_key=${process.env.TMDB_API_KEY}&language=en-US&query=${query}&page=${page}`);
@@ -97,10 +99,11 @@ export const getMovies = async (req, res) => {
         const searchResults = await searchTMDBMovies(search, externalPage);
         const startIdx = externalSkip % limit;
         externalMovies = searchResults.movies
-          .slice(startIdx, startIdx + remainingInPage);
+          .slice(startIdx, startIdx + remainingInPage).filter(movie => !localMovies.some(localMovie => 
+            localMovie.externalId === movie.externalId
+          ));;
         totalExternalCount = searchResults.totalResults;
       } else {
-        // Get popular movies from TMDB
         const startIdx = externalSkip;
         if (startIdx < popularMovieIds.length) {
           const pageMovieIds = popularMovieIds
@@ -117,7 +120,9 @@ export const getMovies = async (req, res) => {
             })
           );
           
-          externalMovies = fetchedMovies.filter(movie => movie !== null);
+          externalMovies = fetchedMovies.filter(movie => movie !== null).filter(movie => !localMovies.some(localMovie => 
+            localMovie.externalId === movie.externalId
+          ));
           totalExternalCount = popularMovieIds.length;
         }
       }
@@ -309,67 +314,46 @@ export const createMovie = async (req, res) => {
   }
 };
 
+
 export const updateMovie = async (req, res) => {
   try {
-    const movie = await Movie.findById(req.params.id);
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const producerId = await createOrFindProducer(updateData.producer);
+    const actorIds = await Promise.all(updateData.actors.map(actor => createOrFindActor(actor)));
+
+    updateData.producer = producerId;
+    updateData.actors = actorIds;
+
+    let movie;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      movie = await Movie.findById(id);
+    } else {
+      movie = await Movie.findOne({ externalId: id });
+    }
+
     if (!movie) {
-      return res.status(404).json({ message: 'Movie not found' });
-    }
-
-    if (movie.isExternal) {
-      return res.status(400).json({ message: 'Cannot update external movie' });
-    }
-
-    const { producer, actors, ...otherFields } = req.body;
-
-    // Handle external producer
-    let producerId = producer;
-    if (typeof producer === 'object' && producer.isExternal) {
-      const newProducer = new Producer({
-        name: producer.name,
-        gender: producer.gender,
-        dateOfBirth: producer.dateOfBirth,
-        bio: producer.bio,
-        externalId: producer.tmdbId
+      movie = new Movie({
+        ...updateData,
+        externalId: id,
+        isExternal: false
       });
-      const savedProducer = await newProducer.save();
-      producerId = savedProducer._id;
+    } else {
+      Object.assign(movie, updateData);
     }
 
-    // Handle external actors
-    const actorIds = actors ? await Promise.all(actors.map(async (actor) => {
-      if (typeof actor === 'object' && actor.isExternal) {
-        const newActor = new Actor({
-          name: actor.name,
-          gender: actor.gender,
-          dateOfBirth: actor.dateOfBirth,
-          bio: actor.bio,
-          externalId: actor.tmdbId
-        });
-        const savedActor = await newActor.save();
-        return savedActor._id;
-      }
-      return actor;
-    })) : movie.actors;
-
-    const updatedMovie = await Movie.findByIdAndUpdate(
-      req.params.id,
-      {
-        ...otherFields,
-        producer: producerId || movie.producer,
-        actors: actorIds
-      },
-      { new: true }
-    )
-    .populate('producer', 'name')
-    .populate('actors', 'name');
+    const updatedMovie = await movie.save();
+    await updatedMovie.populate('producer', 'name');
+    await updatedMovie.populate('actors', 'name');
 
     res.json(updatedMovie);
   } catch (error) {
+    console.error('Error updating movie:', error);
     res.status(500).json({ message: error.message });
   }
 };
-
 
 export const deleteMovie = async (req, res) => {
   try {
@@ -383,7 +367,7 @@ export const deleteMovie = async (req, res) => {
       return res.status(400).json({ message: 'Cannot delete external movie' });
     }
 
-    await movie.remove();
+    await Movie.findByIdAndDelete(req.params.id);
     res.json({ message: 'Movie removed' });
   } catch (error) {
     res.status(500).json({ message: error.message });

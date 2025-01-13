@@ -125,3 +125,35 @@ export const deleteProducer= async (req, res) => {
   }
 };
 
+
+export const createOrFindProducer = async (producerData) => {
+  if (typeof producerData === 'string') {
+    return producerData; // It's already an ObjectId
+  }
+  
+  let producer;
+  
+  if (producerData.tmdbId) {
+    producer = await Producer.findOne({ tmdbId: producerData.tmdbId });
+    
+    if (!producer) {
+      const tmdbData = await fetchProducerFromTMDB(producerData.tmdbId);
+      producer = new Producer(tmdbData);
+      await producer.save();
+    }
+  } else {
+    producer = await Producer.findOne({ name: producerData.name });
+    
+    if (!producer) {
+      producer = new Producer({
+        name: producerData.name,
+        gender: producerData.gender == 1 ? "female" : producerData.gender == 2 ? "male" : "other",
+        dateOfBirth: producerData.dateOfBirth || new Date().toISOString().split('T')[0],
+        bio: producerData.bio || 'No biography available.',
+      });
+      await producer.save();
+    }
+  }
+  
+  return producer._id;
+};

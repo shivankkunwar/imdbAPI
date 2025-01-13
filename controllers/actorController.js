@@ -126,3 +126,34 @@ export const deleteActor = async (req, res) => {
   }
 };
 
+export const createOrFindActor = async (actorData) => {
+  if (typeof actorData === 'string') {
+    return actorData; // It's already an ObjectId
+  }
+  
+  let actor;
+  
+  if (actorData.tmdbId) {
+    actor = await Actor.findOne({ tmdbId: actorData.tmdbId });
+    
+    if (!actor) {
+      const tmdbData = await fetchActorFromTMDB(actorData.tmdbId);
+      actor = new Actor(tmdbData);
+      await actor.save();
+    }
+  } else {
+    actor = await Actor.findOne({ name: actorData.name });
+    
+    if (!actor) {
+      actor = new Actor({
+        name: actorData.name,
+        gender: actorData.gender == 1 ? "female" : actorData.gender == 2 ? "male" : "other",
+        dateOfBirth: actorData.dateOfBirth || new Date().toISOString().split('T')[0],
+        bio: actorData.bio || 'No biography available.',
+      });
+      await actor.save();
+    }
+  }
+  
+  return actor._id;
+};

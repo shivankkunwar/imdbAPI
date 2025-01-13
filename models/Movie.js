@@ -36,7 +36,8 @@ const MovieSchema = new mongoose.Schema({
     },
     externalId: {
         type: String,
-        sparse: true
+        sparse: true,
+        index:true
     }
 },{
     timestamps: true
