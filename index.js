@@ -21,7 +21,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/movies', movieRoutes);
 app.use('/api/actors', actorRoutes);
 app.use('/api/producers', producerRoutes);
-
+app.get('/keep-alive', (req, res) => {
+  res.status(200).send('I am alive!');
+});
 
 // Error handling middleware
 app.use((err, req, res) => {
