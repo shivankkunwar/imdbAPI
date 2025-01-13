@@ -1,12 +1,12 @@
 import Producer from '../models/Producer.js';
 import fetch from 'node-fetch';
 
-const TMDB_API_KEY = process.env.TMDB_API_KEY;
+
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 
 // Fetch actor details from TMDB
 const fetchProducerFromTMDB = async (id) => {
-  const response = await fetch(`${TMDB_BASE_URL}/person/${id}?api_key=${TMDB_API_KEY}&language=en-US`);
+  const response = await fetch(`${TMDB_BASE_URL}/person/${id}?api_key=${process.env.TMDB_API_KEY}&language=en-US`);
   const data = await response.json();
   return {
     name: data.name,
@@ -44,7 +44,7 @@ export const getProducers = async (req, res) => {
 
     if (search) {
       // If there's a search query, fetch from TMDB
-      const searchResponse = await fetch(`${TMDB_BASE_URL}/search/person?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(search)}&page=${page}`);
+      const searchResponse = await fetch(`${TMDB_BASE_URL}/search/person?api_key=${process.env.TMDB_API_KEY}&query=${search}&page=${page}`);
       const searchData = await searchResponse.json();
       
       externalProducers = await Promise.all(searchData.results.slice(0, limit).map(async (actor) => {

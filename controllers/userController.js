@@ -9,7 +9,7 @@ const registerUser = async (req, res) =>{
         if(existingUser) return res.status(400).json({message: "User already exists"});
         const user = new User({username, email, password});
         await user.save();
-        const token = jwt.sign({id: user._id}, process.env.JWT_SECRET, {expiresIn: '1hr'});
+        const token = jwt.sign({id: user._id}, process.env.JWT_SECRET, {expiresIn: '2hr'});
         res.status(201).json({token, username: user.username});
 
     } catch(err) {
@@ -30,7 +30,7 @@ const loginUser = async (req, res) => {
             return res.status(400).json({ message: "Invalid email or password" });
         }
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1hr' });
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '2hr' });
         res.json({ token, username: user.username });
 
     } catch(err) {
